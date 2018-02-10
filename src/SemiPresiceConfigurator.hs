@@ -24,8 +24,6 @@ muchGreater a b
   | otherwise            = False where 
     bias                 = 10 -- ! kinda trouble here. This is a test value, has to be adjusted after the testing
 
-  -- ! {Li when L(i-1)<8\9*Li>L(i-1)}
-   
 peaksOf :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a]
 peaksOf l = let triplets = chunksOf l in 
   map (\(x:y:z:_) -> if (y `muchGreater` x) && (y `muchGreater` z) then y else 0) triplets
