@@ -1,0 +1,83 @@
+the WardeN content-protection security system v0.0.2
+
+I <THE IMAGE UPLOADING>
+  i. <UPLOADING IMAGE TO THE "UNDER CONSIDERAITON" MEMORY SECTOR>
+     i.i : uploading image to the special directory on the server(FU#1)
+     i.ii: defining special "tag"(DEF#1), containing the Uploader's ID, 
+           the "Total controlsum"(DEF#2) of the Image and the Image itself
+	     so: data WardenImg = WardenImg 
+	              { UID    :: Word64
+		            , CSM    :: Word64
+		            , IMG    :: LibMaksimHasDecidedDefaultImageType.ImageType}
+       :so
+  ii. <WARDEN FIRST ASSAY OR "THE DUMMY TEST">
+      unsing the tag, attached to the Image, WardeN scans the DB containing 
+      controlsums of chargeable content distribution channels, Uploader 
+      subscribed to,compaiting each element of those with the CSM field of 
+      the WardenImg record(taking the CSM from the tag)
+  iii. <SECOND ASSAY OR "THE SEMI-PRESICE CONSIDERATION">
+       iii.i  : reducing colors and icnrease the contrast of 2 compared Images 
+       iii.ii : subdividing Images into N(DEF#3) size-depending(DEF#3) tiles
+       iii.iii: multi-threading calculating of the content-sensitive(DEF#4) controlsum
+       iii.iv : multi-threading compairing the content-sensitive CSM accured earlier 
+       iii.v  : compairing the final score with the threshold(FU#4)
+  vi. <THIRD ASSAY OR "THE ACCURATE CONSIDERATION">
+      footnote:
+        all Images, passed through this step are sent to the human analysis.
+      :footnote
+      if the result of the SECOND ASSAY is not considered being accurate enough
+      (threshold-5% < threshold < threshold+5%) then do the pixel-by pixel 
+      examination, building the non-matching map(DEF#5), if the persentage of Trues 
+      in the non-matching map is less then the threshold(FU#4) the image is OK.    
+DEF:
+  #1 tag is a special chunk of data, somehow(FU#2) attached to the original file
+  #2 controlsum is calculated right after the image uploading
+  #3 N is an amount of those tiles. The tile size is calculated out of the source
+     image size.
+  #4 while content-sensitive controlsum is evaluated, some remarkable features of
+     the source data chunk are taken into account by a special algorithm(FU#3).
+  #5 the non-matching map is a Matrix(exact same size as the Source image is)
+     containing Boolean values: let the pixel A(135,125) be 0,0,0,0 and the pixel 
+     B(135,125) be 1,1,1,1 after this text, the Matrix element (135,125) would be False
+FU:
+  #1 define the server data-storing architecture
+  #2 HOW?!!
+  #3 DEFINE THE WAY THIS ALGORITHM COULD BE IMPLEMENTED --_math_goes_here_-- #_# LEV DISTANCE
+  #4 how to find this one(let it be 60% for now)
+
+#_# ASSAY = проход  
+
+
+# Определение направления изменения Загруженности 
+Направленние вектора загруженновти может быть представлено алгебраическим типом:  
+```haskell 
+data Direction = Evenly | Right | Left | Top | Bottom
+```
+то есть изображение может быть 
+* загружено равномерно(быть однородным) => Evenly
+* становиться разряженнее справа налево => Right
+* становиться разряженнее слева направо => Left 
+* становиться разряженнее сверху вниз => Up
+* становиться разряженнее снизу вверх => Down
+
+Исходя из направления выясняется, что именно брать за основной элемент изучения: Строки или Столбцы, но так как Матрица состоит только из строк и столбцов, то тип ```Direction``` может бать редуцирован до 
+```haskell 
+data Direction = Evenly | Vertical | Horizontal
+```
+
+Следовательно, Если Direction == Vertical, то основным элементом становятся Столбцы, Если же Direction == Horizontal, то Строки.  
+Так как и строоки и столбцы матрицы можно представить в виде векторов, то для вычисления финального коэффициента имеет смысл ввести следующие параметры:
+* CSM (control sum) - контрольная сумма вектора
+* AVG (average) - среднее арифметическое вектора
+* PLN (peak length) - длина пикового сегмента вектора
+* PST (peak start) - координата начала пикового сегмента 
+* PFN (peak finish) - координата окончания пикового сегмента
+* LEN (length) - длина вектора
+* APV (average peak value) - среднее арифметическое пикового сегмента
+* MPV (median peak value) - медианное значение пикового сегмента
+* PDA - APV or MPV / AVG  
+Из вышеприведённых параметров и составляется контекстно-чувствительня контрольная сумма 
+-----------
+## ФАКАПЫ
+* ОПРЕДЕЛЕНИЕ МНОЖИТЕЛЕЙ ДЛЯ ПРИВЕЛЕНИЯ ПАРАМЕТРОВ К ОБЩЕМУ(НОРМАЛИЗИРОВАННОМУ) ВИДУ
+* ОПТИМИЗАЦИЯ 
