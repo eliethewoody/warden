@@ -35,6 +35,10 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - WARDEN
+    - JuicyPixels
+    - matrix
+    - split
+    - bytestring
 
 tests:
   WARDEN-test:
