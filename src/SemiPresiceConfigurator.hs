@@ -25,20 +25,19 @@ muchGreater a b
     bias                 = 10 -- ! kinda trouble here. This is a test value, has to be adjusted after the testing
 
 peaksOf :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a]
-peaksOf l = let triplets = chunksOf l in 
+peaksOf l = let triplets = chunksOf 3 l in 
   map (\(x:y:z:_) -> if (y `muchGreater` x) && (y `muchGreater` z) then y else 0) triplets
-
 
 contextSensitiveCoeffOf :: [Word8] -> Int
 contextSensitiveCoeffOf row =
  let avg a = sum a `div` length a -- the average value of the list
-     apv = (avg . findPeaks . map fromIntegral) row
+     apv = (avg . peaksOf . map fromIntegral) row
  in apv `div` ((avg . map fromIntegral) row)
 
 foldDataTile :: BS.ByteString -> Int -> Int
 foldDataTile s w =
  let image = toLists $ fromList (BS.length s `div` w) w (BS.unpack s)
-     in sum $ map contextS*ensitiveCoeffOf image
+     in sum $ map contextSensitiveCoeffOf image
 
 chunkImage :: Int -> Int -> Int -> Int -> Image PixelRGB8 -> Image PixelRGB8
 chunkImage w h sx sy image@Image{..} =
@@ -59,25 +58,28 @@ chunkImage w h sx sy image@Image{..} =
        in go sx sy
   else error "Wrong img params passed"
 
-processImage :: FilePath -> IO [Int] -- !FIXME: rewrite, looks ugly 
-processImage fp = do
-  eimg <- readImage fp
-  case eimg of
-    Left err -> error err
-    Right img -> do 
-      image <- convertRGB8 img 
+processImage :: DynamicImage -> [Int]
+processImage img = let
+      image = convertRGB8 img 
       -- * assume that the image would be analysed as a grid 8x8 cells\data_tiles. 
       -- * so the w and h parameters should be divided by 8 to get the dimentions 
       -- * of the data_tile being analysed.
-      wt      <- (imageWidth image)  `div` 8 -- ! static coeff here 
-      ht      <- (imageHeight image) `div` 8 -- ! static coeff here
-      widths  <- [x | x <- n*wt,
-                      n <- [0..((imageWidth image) `div` wt)]]
-      heights <- [x | x <- n*ht,
-                      n <- [0..((imageHeight) `div` ht)]]
-      tiles   <- zipWith (\x y -> chunkImage x y (x+wt) (y+ht) image) widths heights
-      bitmaps <- map encodeBitmap tiles
-      map (\x -> foldDataTile (BSL.toStrict x) wt) bitmaps
+      w = (imageWidth image)
+      h = (imageHeight image)
+      wt      = w `div` 8 -- ! static coeff here 
+      ht      = h `div` 8 -- ! static coeff here
+      widths  = map (\n -> n*wt) [0..(w `div` wt)]
+      heights = map (\n -> n*ht) [0..(h `div` ht)]
+      tiles   = zipWith (\x y -> chunkImage x y (x+wt) (y+ht) image) widths heights
+      bitmaps = map encodeBitmap tiles in 
+        map (\x -> foldDataTile (BSL.toStrict x) wt) bitmaps
       
+coeffOf :: FilePath -> IO()
+coeffOf fp = do
+  eimg <- readImage fp
+  case eimg of
+    Left err -> error err
+    Right img -> print $ processImage img
 
---convertRGB8 :: DynamicImage -> Image PixelRGB8
+
+-- // convertRGB8 :: DynamicImage -> Image PixelRGB8
