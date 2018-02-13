@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards#-}
+{-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module SemiPresiceConfigurator where
@@ -6,7 +6,6 @@ module SemiPresiceConfigurator where
 import Codec.Picture
 import Control.Monad.ST
 import Data.Word(Word8)
-import Data.Matrix
 import Data.Bits(xor)
 import System.IO
 import Data.List.Split
@@ -26,39 +25,38 @@ muchGreater a b
 
 peaksOf :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a]
 peaksOf l = let triplets = chunksOf 3 l in 
-  map (\(x:y:z:_) -> if (y `muchGreater` x) && (y `muchGreater` z) then y else 0) triplets
+  filter (/=0) $ map (\(x:y:z:_) -> if (y `muchGreater` x) && (y `muchGreater` z) then y else 0) triplets
 
 contextSensitiveCoeffOf :: [Word8] -> Int
 contextSensitiveCoeffOf row =
- let avg a = sum a `div` length a -- the average value of the list
+ let avg a = sum a `div` (length a)+1 -- the average value of the list
      apv = (avg . peaksOf . map fromIntegral) row
  in apv `div` ((avg . map fromIntegral) row)
 
 foldDataTile :: BS.ByteString -> Int -> Int
 foldDataTile s w =
- let image = toLists $ fromList (BS.length s `div` w) w (BS.unpack s)
+ let image = chunksOf w (BS.unpack s)
      in sum $ map contextSensitiveCoeffOf image
 
-chunkImage :: Int -> Int -> Int -> Int -> Image PixelRGB8 -> Image PixelRGB8
-chunkImage w h sx sy image@Image{..} =
-  if w      < imageWidth  &&
-     h      < imageHeight &&
-     sx     < imageWidth  &&
-     sy     < imageHeight &&
-     (sx+w) < imageWidth  &&
-     (sy+h) < imageHeight
-  then runST $ do
-    mutableImage <- PT.newMutableImage w h
-    let go x y
-          | x == (w+sx) = go sx (y+1)
-          | y == (h+sy) = PT.unsafeFreezeImage mutableImage
-          | otherwise = do
-            writePixel mutableImage (x-sx) (y-sy) (pixelAt image x y)
-            go (x+1) y
-       in go sx sy
-  else error "Wrong img params passed"
+imageChunkOf :: Image PixelRGB8 -> (Int, Int) -> (Int, Int) -> Image PixelRGB8 -- * in this functions all coordinates are counted from 0 and ImageWidth\Height are counted from the 1.
+imageChunkOf source@Image{..} (x1, y1) (x2, y2) = if x1 < imageWidth && x2 < imageWidth &&
+                                                     y1 < imageHeight && y2 < imageHeight &&
+                                                     x2 - x1 + 1 < imageWidth &&
+                                                     y2 - y2 + 1 < imageHeight 
+  then 
+    runST $ do
+      mImg <- PT.newMutableImage (x2 - x1 + 1) (y2 - y1 + 1)
+      let step x y 
+            | x >= (x2 - x1 + 1) = step 0 (y+1)
+            | y >= (y2 - y1 + 1) = PT.unsafeFreezeImage mImg
+            | otherwise = do -- do inside do inside a runST inside an IF!!
+              writePixel mImg x y (pixelAt source x y)
+              step (x + 1) y
+          in step 0 0
+  else error "Oh NO!" --TODO!
 
-processImage :: DynamicImage -> [Int]
+-- //processImage :: DynamicImage -> [Int]
+processImage :: DynamicImage -> IO()
 processImage img = let
       image = convertRGB8 img 
       -- * assume that the image would be analysed as a grid 8x8 cells\data_tiles. 
@@ -68,18 +66,19 @@ processImage img = let
       h = (imageHeight image)
       wt      = w `div` 8 -- ! static coeff here 
       ht      = h `div` 8 -- ! static coeff here
-      widths  = map (\n -> n*wt) [0..(w `div` wt)]
-      heights = map (\n -> n*ht) [0..(h `div` ht)]
-      tiles   = zipWith (\x y -> chunkImage x y (x+wt) (y+ht) image) widths heights
-      bitmaps = map encodeBitmap tiles in 
-        map (\x -> foldDataTile (BSL.toStrict x) wt) bitmaps
+      widths  = [wt*x|x<-[0..7]]
+      heights = [ht*x|x<-[0..7]]
+      tiles   = zipWith (\x y -> imageChunkOf image (x, y) ((x+wt-1), (y+ht-1))) widths heights
+      bitmaps = map encodeBitmap tiles
+      eee = map (\x -> foldDataTile (BSL.toStrict x) wt) bitmaps in 
+        putStrLn $ (show w)++" "++(show h)++" "++(show wt)++" "++(show ht)++" "++(show widths)++" "++(show heights)++" "++(show eee)++" "
+          
       
-coeffOf :: FilePath -> IO()
-coeffOf fp = do
-  eimg <- readImage fp
-  case eimg of
-    Left err -> error err
-    Right img -> print $ processImage img
-
-
+-- //coeffOf :: FilePath -> IO()
+-- //coeffOf fp = do
+-- //  eimg <- readImage fp
+-- //  case eimg of
+-- //    Left err -> error err
+-- //    Right img ->
+-- //      let a = processImage img in print a
 -- // convertRGB8 :: DynamicImage -> Image PixelRGB8
