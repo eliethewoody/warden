@@ -6,7 +6,6 @@ module SemiPresiceConfigurator (processImage) where
 import Codec.Picture
 import Control.Monad.ST
 import Data.Word(Word8)
-import Data.Bits(xor)
 import System.IO
 import Data.List.Split
 import qualified Data.ByteString.Lazy as BSL
@@ -22,11 +21,32 @@ muchGreater a b
   | b < a                = False
   | otherwise            = False
 
-peaksOf :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a]
-peaksOf l = let triplets = chunksOf 3 l in 
-  filter (/=0) $ map (\(x:y:z:_) -> if (y `muchGreater` x) && (y `muchGreater` z) then y else 0) triplets
+-- ! peaksOf :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a] 
+-- ! peaksOf l = 
+-- !   let step :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a] -> [a]
+-- !       step list acc 
+-- !         | list == [] = acc
+-- !         | otherwise  = 
+-- !           if length list < 3 &&  ??? fix this one
+-- !             then step ((head list):list) acc
+-- !             else let (a:b:rest) = list in 
+-- !               if (b `muchGreater` a) && (b `muchGreater` (head rest)) 
+-- !                 then step rest (b:acc)
+-- !                 else step rest (acc)
+-- !     in step l []
 
-contextSensitiveCoeffOf :: [Word8] -> Int
+peaksOf :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a] 
+peaksOf l = 
+  let step :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a] -> [a]
+      step list acc =
+          if length list < 3  then acc
+            else let (a:b:rest) = list in 
+              if (b `muchGreater` a) && (b `muchGreater` (head rest)) 
+                then step (b:rest) (b:acc)
+                else step (b:rest) (acc)
+    in step l []
+
+contextSensitiveCoeffOf :: [Word8] -> Int -- The Lisp within...
 contextSensitiveCoeffOf row = let 
   peaks = peaksOf row in 
     if (length peaks) > 0 then
@@ -34,7 +54,7 @@ contextSensitiveCoeffOf row = let
       ((sum . map fromIntegral) peaks)`div`
       ((length peaks)*
       ((sum . map fromIntegral) row))
-    else (length row)`div`((sum . map fromIntegral) row)
+    else (length row)`div`(((sum . map fromIntegral) row)+1)
 
 foldDataTile :: BS.ByteString -> Int -> Int
 foldDataTile s w =
