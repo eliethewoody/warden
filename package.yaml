@@ -39,7 +39,6 @@ executables:
     - matrix
     - split
     - bytestring
-
 tests:
   WARDEN-test:
     main:                Spec.hs
