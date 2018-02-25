@@ -1,39 +1,17 @@
 {-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module SemiPresiceConfigurator (processImage) where
+module SemiPresiceConfigurator (processImage, peaksOf, contextSensitiveCoeffOf) where
 
 import Codec.Picture
 import Control.Monad.ST
 import Data.Word(Word8)
 import System.IO
 import Data.List.Split
+import Data.List
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString as BS
 import qualified Codec.Picture.Types as PT
-
-muchGreater :: (Integral a, Ord a, Eq a, Num a) => a -> a -> Bool
-muchGreater 0 b = False
-muchGreater a 0 = True
-muchGreater a b
-  | a > b+(b `div` 2) = True -- ! kinda trouble here. This is a test value, has to be adjusted after the testing
-  | a == b               = False
-  | b < a                = False
-  | otherwise            = False
-
--- ! peaksOf :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a] 
--- ! peaksOf l = 
--- !   let step :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a] -> [a]
--- !       step list acc 
--- !         | list == [] = acc
--- !         | otherwise  = 
--- !           if length list < 3 &&  ??? fix this one
--- !             then step ((head list):list) acc
--- !             else let (a:b:rest) = list in 
--- !               if (b `muchGreater` a) && (b `muchGreater` (head rest)) 
--- !                 then step rest (b:acc)
--- !                 else step rest (acc)
--- !     in step l []
 
 peaksOf :: (Integral a, Ord a, Eq a, Num a) => [a] -> [a] 
 peaksOf l = 
@@ -41,25 +19,23 @@ peaksOf l =
       step list acc =
           if length list < 3  then acc
             else let (a:b:rest) = list in 
-              if (b `muchGreater` a) && (b `muchGreater` (head rest)) 
+              if (b > a) && (b > (head rest)) 
                 then step (b:rest) (b:acc)
                 else step (b:rest) (acc)
     in step l []
-
-contextSensitiveCoeffOf :: [Word8] -> Int -- The Lisp within...
+      
+contextSensitiveCoeffOf :: [Int] -> Int -- The Lisp within...
 contextSensitiveCoeffOf row = let 
   peaks = peaksOf row in 
     if (length peaks) > 0 then
-      (length row)*
-      ((sum . map fromIntegral) peaks)`div`
-      ((length peaks)*
-      ((sum . map fromIntegral) row))
-    else (length row)`div`(((sum . map fromIntegral) row)+1)
+       (length row)*(sum peaks)`div`
+       (length peaks)*(sum row)
+    else (length row)`div`((sum row)+1)
 
-foldDataTile :: BS.ByteString -> Int -> Int
+foldDataTile :: BS.ByteString -> Int -> [Int]
 foldDataTile s w =
- let image = chunksOf w (BS.unpack s)
-     in sum $ map contextSensitiveCoeffOf image
+ let image = chunksOf w (map fromIntegral $ BS.unpack s)
+     in sort $ map contextSensitiveCoeffOf image
 
 imageChunkOf :: Image PixelRGB8 -> (Int, Int) -> (Int, Int) -> Image PixelRGB8 -- * in this functions all coordinates are counted from 0 and ImageWidth\Height are counted from the 1.
 imageChunkOf source@Image{..} (x1, y1) (x2, y2) = if x1 <= imageWidth && 
@@ -83,7 +59,7 @@ imageChunkOf source@Image{..} (x1, y1) (x2, y2) = if x1 <= imageWidth &&
   else error "Oh NO!"
 
 -- //processImage :: DynamicImage -> [Int]
-processImage :: DynamicImage -> [Int]
+processImage :: DynamicImage -> [[Int]]
 processImage img = let
       image = convertRGB8 img 
       -- * assume that the image would be analysed as a grid 8x8 cells\data_tiles. 
@@ -111,3 +87,5 @@ processImage img = let
 -- //    Right img ->
 -- //      let a = processImage img in print a
 -- // convertRGB8 :: DynamicImage -> Image PixelRGB8
+
+

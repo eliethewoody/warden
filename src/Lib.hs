@@ -4,18 +4,34 @@ import SemiPresiceConfigurator
 import Codec.Picture
 import Data.List 
 import System.IO
+import Data.Matrix
 
-demo :: IO()
-demo = do
-  Right image1 <- readImage ("./tost.jpg"::FilePath)
-  Right image2 <- readImage ("./tostotito.jpg"::FilePath)
-  Right image3 <- readImage ("./toost.jpg"::FilePath)
-  Right image4 <- readImage ("./teest.jpg"::FilePath)
-  putStrLn $ " default>     "   ++ (show $ (processImage image1))       ++
-             "\n lenschanged> " ++ (show $ (processImage image2))       ++
-             "\n dsparks>     " ++ (show $ (processImage image3))       ++
-             "\n differentone>" ++ (show $ (processImage image4))       ++
-             "\n diff12>                           " ++ (show $ (processImage image1) \\ (processImage image2)) ++
-             "\n diff23>                           " ++ (show $ (processImage image2) \\ (processImage image4)) ++
-             "\n diff34>                           " ++ (show $ (processImage image3) \\ (processImage image4)) 
--- !!! РАЗНОСТЬ (РАЗНИЦА, DIFF) СПИСКОВ ЕСТЬ КОЭФФИЦИЕНТ РАЗЛИЧИЯ
+demo :: [IO()]
+demo = let
+  base = "./samples/srcs/"
+  names = [10..18]
+  end = ".jpg" 
+  end1 = ".png" in 
+    map (\x -> singlecoef (base++(show x)++end) (base++(show x)++end1)) names
+
+singlecoef :: FilePath -> FilePath -> IO()
+singlecoef p p1= do
+  Right image <- readImage p
+  let pi = processImage image
+      maxlen = maximum $ map length pi
+      mtx = fromLists $ map (\x -> x++(replicate (maxlen - (length x)) 0)) pi
+      pixelRenderer x y = PixelRGB8 (fromIntegral $ getElem (y+1) (x+1) mtx) 0 0 in -- * WE CAN STORE EVEN MORE DATA!!
+        writeBitmap p1 $ generateImage pixelRenderer (ncols mtx) (nrows mtx)
+
+compare :: FilePath -> FilePath -> FilePath -> IO()
+compare p p1 p2 = do
+  Right image1 <- readImage p
+  Right image2 <- readImage p1
+  let pi1 = (processImage image1) 
+      pi2 = (processImage image2)
+      pi1diffpi2 = zipWith (\\) pi1 pi2
+      maxlen = maximum $ map length pi1diffpi2
+      mtx = fromLists $ map (\x -> x++(replicate (maxlen - (length x)) 0)) pi1diffpi2
+      pixelRenderer x y = PixelRGB8 (fromIntegral $ getElem (y+1) (x+1) mtx) 0 0 in -- * WE CAN STORE EVEN MORE DATA!!
+        writeBitmap p2 $ generateImage pixelRenderer (ncols mtx) (nrows mtx)
+
